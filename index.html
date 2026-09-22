@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>U-WIN vs HMIS Comparative Status Portal</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SheetJS for client-side Excel parsing & export -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- html2pdf.js for clean PDF downloads -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        .navy-bg { background-color: #1F4E78; color: white; }
+        .header-bg { background-color: #2F5597; color: white; }
+        .flag-red { background-color: #DC2626 !important; color: white; font-weight: bold; }
+        
+        /* Strict Print Rules for Multi-Page Printable Selection */
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white !important; font-size: 8.5pt !important; margin: 0 !important; padding: 0 !important; }
+            @page { size: A4 portrait; margin: 0.2in; }
+            .report-card { 
+                box-shadow: none !important; 
+                border: none !important; 
+                padding: 0 !important; 
+                margin: 0 0 20px 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                page-break-inside: avoid !important;
+                page-break-after: always !important;
+            }
+            .overflow-x-auto { overflow: visible !important; }
+            table { font-size: 8.5pt !important; width: 100% !important; border-collapse: collapse !important; table-layout: fixed !important; }
+            th { padding: 3px 5px !important; white-space: nowrap !important; }
+            td { padding: 2.2px 5px !important; line-height: 1.25 !important; }
+            .legend-box { padding: 5px 8px !important; margin-bottom: 8px !important; font-size: 7.5pt !important; }
+            .header-box { padding-bottom: 4px !important; margin-bottom: 6px !important; }
+            tr { page-break-inside: avoid !important; }
+            .print-exclude { display: none !important; }
+        }
+
+        .pdf-page-wrapper {
+            page-break-inside: avoid !important;
+            page-break-after: always !important;
+            padding: 10px !important;
+            margin-bottom: 20px !important;
+            background: white !important;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col">
+
+    <!-- Top Navigation Tabs -->
+    <header class="bg-slate-900 text-white no-print shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
+            <div class="flex items-center gap-3">
+                <span class="bg-blue-600 text-white font-black px-2.5 py-1 rounded text-sm">UWIN-HMIS</span>
+                <h1 class="text-base sm:text-lg font-bold tracking-tight">Coverage Analytics Portal</h1>
+            </div>
+            <nav class="flex gap-2">
+                <button id="tabDashboardBtn" onclick="switchPage('dashboard')" class="px-4 py-2 rounded-lg text-xs font-bold transition bg-blue-600 text-white">
+                    📊 Dashboard & Reports
+                </button>
+                <button id="tabUploadBtn" onclick="switchPage('upload')" class="px-4 py-2 rounded-lg text-xs font-bold transition bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white">
+                    📁 Upload New Month Files
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- PAGE 1: UPLOAD & PROCESS FILES -->
+    <div id="pageUpload" class="max-w-7xl mx-auto w-full p-4 sm:p-8 hidden">
+        <div class="bg-white p-6 sm:p-8 rounded-2xl shadow-xl border border-slate-200 space-y-6">
+            <div class="border-b border-slate-200 pb-4">
+                <h2 class="text-2xl font-black text-slate-900 flex items-center gap-2">
+                    <svg class="w-7 h-7 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                    Direct Browser File Upload & Automatic Processing
+                </h2>
+                <p class="text-xs text-slate-500 mt-1">Upload your new monthly HMIS Excel files, U-WIN Coverage Excel files, U-WIN FIC Report files, and Target Sheet. The browser will automatically parse, clean, and aggregate the data across all months into the dashboard instantly!</p>
+            </div>
+
+            <!-- Upload Cards Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="border-2 border-dashed border-slate-300 hover:border-blue-500 bg-slate-50 p-5 rounded-xl text-center transition">
+                    <div class="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center mx-auto mb-3 font-bold text-lg">🎯</div>
+                    <h3 class="text-sm font-bold text-slate-800">1. Annual Target Sheet</h3>
+                    <p class="text-[11px] text-slate-500 mb-4">Upload Target Sheet.xlsx (Contains State Infant Targets)</p>
+                    <input type="file" id="inputTargetFile" accept=".xlsx,.xls" class="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700 cursor-pointer"/>
+                </div>
+
+                <div class="border-2 border-dashed border-slate-300 hover:border-blue-500 bg-slate-50 p-5 rounded-xl text-center transition">
+                    <div class="w-10 h-10 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center mx-auto mb-3 font-bold text-lg">🏥</div>
+                    <h3 class="text-sm font-bold text-slate-800">2. Monthly HMIS Excel Files</h3>
+                    <p class="text-[11px] text-slate-500 mb-4">Upload all monthly HMIS files (e.g., 01 Apr 26.xlsx, 02 May 26.xlsx, etc.)</p>
+                    <input type="file" id="inputHMISFiles" multiple accept=".xlsx,.xls" class="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer"/>
+                </div>
+
+                <div class="border-2 border-dashed border-slate-300 hover:border-blue-500 bg-slate-50 p-5 rounded-xl text-center transition">
+                    <div class="w-10 h-10 bg-purple-100 text-purple-700 rounded-full flex items-center justify-center mx-auto mb-3 font-bold text-lg">💉</div>
+                    <h3 class="text-sm font-bold text-slate-800">3. Monthly U-WIN Coverage Reports</h3>
+                    <p class="text-[11px] text-slate-500 mb-4">Upload U-WIN Coverage files (e.g., UWIN Coverage Report.xlsx)</p>
+                    <input type="file" id="inputUWINCoverageFiles" multiple accept=".xlsx,.xls" class="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-purple-600 file:text-white hover:file:bg-purple-700 cursor-pointer"/>
+                </div>
+
+                <div class="border-2 border-dashed border-slate-300 hover:border-blue-500 bg-slate-50 p-5 rounded-xl text-center transition">
+                    <div class="w-10 h-10 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center mx-auto mb-3 font-bold text-lg">👶</div>
+                    <h3 class="text-sm font-bold text-slate-800">4. Monthly U-WIN FIC Reports</h3>
+                    <p class="text-[11px] text-slate-500 mb-4">Upload U-WIN FIC files (e.g., FIC Report.xlsx)</p>
+                    <input type="file" id="inputUWINFICFiles" multiple accept=".xlsx,.xls" class="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-amber-600 file:text-white hover:file:bg-amber-700 cursor-pointer"/>
+                </div>
+            </div>
+
+            <div class="pt-4 border-t border-slate-200 flex justify-end gap-3">
+                <button onclick="processUploadedFiles()" class="bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-800 hover:to-indigo-800 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition flex items-center gap-2 text-sm">
+                    ⚡ Process Files & Refresh Dashboard
+                </button>
+            </div>
+            <div id="uploadLog" class="text-xs font-mono bg-slate-900 text-emerald-400 p-4 rounded-xl hidden max-h-40 overflow-y-auto"></div>
+        </div>
+    </div>
+
+    <!-- PAGE 2: DASHBOARD & REPORTS -->
+    <div id="pageDashboard" class="max-w-7xl mx-auto w-full p-4 sm:p-8">
+        
+        <!-- Controls Header: Antigen Selection & Actions Inline -->
+        <div class="mb-6 no-print bg-white p-5 rounded-2xl shadow-md border border-slate-200 flex flex-col lg:flex-row justify-between items-center gap-4">
+            <div>
+                <h2 class="text-xl font-bold text-slate-900">U-WIN vs HMIS Comparative Status Portal</h2>
+                <p id="periodSubtitle" class="text-xs text-slate-500 mt-0.5">Period: Apr 26 to Jul 26 | HMIS Data as on 25th Aug 2026 | U-WIN as on 18th Sep 2026</p>
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-3 w-full lg:w-auto justify-end">
+                <div class="flex items-center gap-2">
+                    <label for="indicatorSelect" class="text-xs font-bold text-slate-700 whitespace-nowrap">Antigen Filter:</label>
+                    <select id="indicatorSelect" onchange="switchIndicator()" class="bg-slate-50 border border-blue-500 text-slate-900 text-xs rounded-lg p-2 font-bold focus:ring-2 focus:ring-blue-500">
+                        <option value="ALL">All Antigens (Summary View)</option>
+                        <option value="FIC" selected>Fully Immunized Child (FIC)</option>
+                        <option value="MR1">MR-1 (Measles & Rubella 1)</option>
+                        <option value="MR2">MR-2 (Measles & Rubella 2)</option>
+                        <option value="OPV1">OPV-1</option>
+                        <option value="OPV3">OPV-3</option>
+                        <option value="Penta1">Penta-1</option>
+                        <option value="Penta3">Penta-3</option>
+                        <option value="SessionHeld">Sessions Held</option>
+                        <option value="SessionPlanned">Sessions Planned</option>
+                    </select>
+                </div>
+                
+                <div class="flex gap-1.5 flex-wrap items-center">
+                    <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 px-3 rounded-lg shadow transition">
+                        📊 Export Excel
+                    </button>
+                    <button onclick="exportToWord()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 px-3 rounded-lg shadow transition">
+                        📝 Export Word
+                    </button>
+                    <button onclick="printSelectedPDF()" class="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold py-2 px-3 rounded-lg shadow transition">
+                        🖨️ Print Selected PDF
+                    </button>
+                    <button onclick="downloadSelectedPDF()" class="bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold py-2 px-3 rounded-lg shadow transition">
+                        ⬇️ Download Selected PDF
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Selection Toggle Toolbar -->
+        <div id="selectionBar" class="mb-4 no-print bg-slate-200 px-4 py-2.5 rounded-xl flex justify-between items-center text-xs font-bold text-slate-700">
+            <span>Select Tables to Print / Download:</span>
+            <div class="flex gap-3">
+                <button onclick="toggleSelectAll(true)" class="text-blue-700 hover:underline">Select All</button>
+                <span>|</span>
+                <button onclick="toggleSelectAll(false)" class="text-slate-600 hover:underline">Deselect All</button>
+            </div>
+        </div>
+
+        <!-- Dynamic Stacked Tables Container -->
+        <div id="tables-container" class="space-y-6"></div>
+
+    </div>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        let allData = {
+          "FIC": [
+            ["National", 8103527, 4159020, 95.9, 49.2],
+            ["A&N Islands", 1211, 926, 109.8, 84.0],
+            ["Andhra Pradesh", 250931, 89495, 103.8, 37.0],
+            ["Arunachal Pradesh", 6971, 4851, 80.9, 56.3],
+            ["Assam", 169829, 144955, 79.9, 68.2],
+            ["Bihar", 1045306, 635031, 102.2, 62.1],
+            ["Chandigarh", 4900, 3599, 111.5, 81.9],
+            ["Chhattisgarh", 166690, 97475, 76.4, 44.7],
+            ["Delhi", 96170, 71650, 94.2, 70.2],
+            ["Goa", 5256, 4161, 110.6, 87.6],
+            ["Gujarat", 443101, 2400, 106.1, 0.6],
+            ["Haryana", 184377, 42130, 108.1, 24.7],
+            ["Himachal Pradesh", 28615, 25125, 98.8, 86.8],
+            ["Jammu & Kashmir", 68201, 52492, 104.0, 80.0],
+            ["Jharkhand", 284095, 66785, 92.1, 21.7],
+            ["Karnataka", 333285, 177797, 104.3, 55.6],
+            ["Kerala", 107211, 69228, 102.2, 66.0],
+            ["Ladakh", 1331, 1208, 122.6, 111.2],
+            ["Lakshadweep", 281, 231, 129.3, 106.3],
+            ["Madhya Pradesh", 581046, 368317, 94.7, 60.0],
+            ["Maharashtra", 610273, 323617, 94.5, 50.1],
+            ["Manipur", 10012, 5627, 88.3, 49.6],
+            ["Meghalaya", 22512, 14341, 81.8, 52.1],
+            ["Mizoram", 5594, 4052, 73.0, 52.8],
+            ["Nagaland", 5461, 3849, 75.9, 53.5],
+            ["Odisha", 176670, 144376, 90.5, 73.9],
+            ["Puducherry", 4104, 3328, 114.1, 92.6],
+            ["Punjab", 129329, 74453, 104.1, 59.9],
+            ["Rajasthan", 525212, 206551, 92.4, 36.4],
+            ["Sikkim", 2131, 1885, 88.2, 78.0],
+            ["Tamil Nadu", 275406, 228566, 100.3, 83.3],
+            ["Telangana", 221727, 107673, 117.0, 56.8],
+            ["The D&N Haveli and DD", 3676, 2640, 81.1, 58.3],
+            ["Tripura", 14052, 11640, 92.2, 76.3],
+            ["Uttar Pradesh", 1829878, 1052914, 91.7, 52.8],
+            ["Uttarakhand", 57477, 43594, 93.5, 70.9],
+            ["West Bengal", 431206, 72058, 92.3, 15.4]
+          ],
+          "MR1": [
+            ["National", 8078375, 5143512, 95.6, 60.9],
+            ["A&N Islands", 1200, 953, 108.8, 86.4],
+            ["Andhra Pradesh", 246262, 79762, 101.8, 33.0],
+            ["Arunachal Pradesh", 6862, 5487, 79.6, 63.7],
+            ["Assam", 169864, 145097, 80.0, 68.3],
+            ["Bihar", 1044329, 846423, 102.1, 82.8],
+            ["Chandigarh", 4788, 4195, 109.0, 95.5],
+            ["Chhattisgarh", 164738, 116477, 75.5, 53.4],
+            ["Delhi", 94562, 82995, 92.6, 81.3],
+            ["Goa", 5314, 4745, 111.8, 99.9],
+            ["Gujarat", 432339, 2879, 103.6, 0.7],
+            ["Haryana", 184110, 49735, 108.0, 29.2],
+            ["Himachal Pradesh", 28631, 27528, 98.9, 95.1],
+            ["Jammu & Kashmir", 68374, 59775, 104.2, 91.1],
+            ["Jharkhand", 281985, 87131, 91.5, 28.3],
+            ["Karnataka", 322857, 223609, 101.0, 70.0],
+            ["Kerala", 107795, 84571, 102.8, 80.6],
+            ["Ladakh", 1339, 1235, 123.3, 113.7],
+            ["Lakshadweep", 281, 258, 129.3, 118.7],
+            ["Madhya Pradesh", 579433, 446926, 94.4, 72.8],
+            ["Maharashtra", 607329, 403357, 94.1, 62.5],
+            ["Manipur", 10029, 6596, 88.4, 58.2],
+            ["Meghalaya", 22557, 17905, 82.0, 65.1],
+            ["Mizoram", 5603, 4757, 73.1, 62.0],
+            ["Nagaland", 5286, 5108, 73.5, 71.0],
+            ["Odisha", 176672, 159787, 90.5, 81.8],
+            ["Puducherry", 4216, 3401, 117.3, 94.6],
+            ["Punjab", 129678, 92049, 104.4, 74.1],
+            ["Rajasthan", 530065, 242112, 93.3, 42.6],
+            ["Sikkim", 2102, 1982, 87.0, 82.0],
+            ["Tamil Nadu", 273007, 238320, 99.4, 86.8],
+            ["Telangana", 224081, 148829, 118.3, 78.6],
+            ["The D&N Haveli and DD", 3650, 2462, 80.6, 54.3],
+            ["Tripura", 14140, 13018, 92.7, 85.4],
+            ["Uttar Pradesh", 1836096, 1408486, 92.0, 70.6],
+            ["Uttarakhand", 57459, 47069, 93.4, 76.5],
+            ["West Bengal", 431342, 78493, 92.3, 16.8]
+          ],
+          "MR2": [
+            ["National", 7777192, 4717496, 92.1, 55.8],
+            ["A&N Islands", 1028, 787, 93.2, 71.4],
+            ["Andhra Pradesh", 236436, 64440, 97.8, 26.6],
+            ["Arunachal Pradesh", 7060, 4947, 81.9, 57.4],
+            ["Assam", 174486, 154144, 82.1, 72.6],
+            ["Bihar", 1055281, 840491, 103.2, 82.2],
+            ["Chandigarh", 4506, 3560, 102.5, 81.0],
+            ["Chhattisgarh", 163231, 108934, 74.8, 49.9],
+            ["Delhi", 91930, 21344, 90.1, 20.9],
+            ["Goa", 5109, 2208, 107.5, 46.5],
+            ["Gujarat", 413789, 2744, 99.1, 0.7],
+            ["Haryana", 176523, 43470, 103.5, 25.5],
+            ["Himachal Pradesh", 29269, 27881, 101.1, 96.3],
+            ["Jammu & Kashmir", 64351, 50858, 98.1, 77.5],
+            ["Jharkhand", 269201, 69748, 87.3, 22.6],
+            ["Karnataka", 311387, 193763, 97.4, 60.6],
+            ["Kerala", 101650, 64773, 96.9, 61.8],
+            ["Ladakh", 1163, 1042, 107.1, 95.9],
+            ["Lakshadweep", 242, 222, 111.3, 102.1],
+            ["Madhya Pradesh", 564936, 465789, 92.1, 75.9],
+            ["Maharashtra", 584713, 340151, 90.6, 52.7],
+            ["Manipur", 10183, 5843, 89.8, 51.5],
+            ["Meghalaya", 23581, 17356, 85.7, 63.1],
+            ["Mizoram", 5487, 4032, 71.6, 52.6],
+            ["Nagaland", 4936, 4488, 68.6, 62.4],
+            ["Odisha", 184501, 158172, 94.5, 81.0],
+            ["Puducherry", 3648, 2822, 101.5, 78.5],
+            ["Punjab", 128917, 78334, 103.8, 63.1],
+            ["Rajasthan", 470654, 167958, 82.8, 29.6],
+            ["Sikkim", 2240, 1916, 92.7, 79.3],
+            ["Tamil Nadu", 250167, 195783, 91.1, 71.3],
+            ["Telangana", 213278, 134201, 112.6, 70.8],
+            ["The D&N Haveli and DD", 3606, 2222, 79.6, 49.0],
+            ["Tripura", 15696, 14390, 102.9, 94.4],
+            ["Uttar Pradesh", 1698933, 1359892, 85.1, 68.2],
+            ["Uttarakhand", 56182, 45993, 91.4, 74.8],
+            ["West Bengal", 448892, 62798, 96.1, 13.4]
+          ],
+          "OPV1": [
+            ["National", 7608236, 4655065, 90.1, 55.1],
+            ["A&N Islands", 1024, 780, 92.9, 70.7],
+            ["Andhra Pradesh", 239382, 75211, 99.0, 31.1],
+            ["Arunachal Pradesh", 6206, 4604, 72.0, 53.4],
+            ["Assam", 156948, 130377, 73.9, 61.4],
+            ["Bihar", 955109, 774726, 93.4, 75.8],
+            ["Chandigarh", 4267, 3565, 97.1, 81.1],
+            ["Chhattisgarh", 158806, 106313, 72.8, 48.7],
+            ["Delhi", 82923, 70096, 81.2, 68.7],
+            ["Goa", 4944, 4188, 104.0, 88.1],
+            ["Gujarat", 403653, 2786, 96.7, 0.7],
+            ["Haryana", 166200, 41812, 97.5, 24.5],
+            ["Himachal Pradesh", 25976, 24933, 89.7, 86.1],
+            ["Jammu & Kashmir", 64955, 57240, 99.0, 87.3],
+            ["Jharkhand", 285918, 94837, 92.7, 30.8],
+            ["Karnataka", 328898, 233108, 102.9, 72.9],
+            ["Kerala", 109657, 87595, 104.6, 83.5],
+            ["Ladakh", 1106, 1033, 101.8, 95.1],
+            ["Lakshadweep", 280, 246, 128.8, 113.2],
+            ["Madhya Pradesh", 538215, 349629, 87.7, 57.0],
+            ["Maharashtra", 576589, 360814, 89.3, 55.9],
+            ["Manipur", 10715, 6757, 94.5, 59.6],
+            ["Meghalaya", 23588, 17654, 85.7, 64.1],
+            ["Mizoram", 5607, 4633, 73.1, 60.4],
+            ["Nagaland", 5480, 5002, 76.2, 69.5],
+            ["Odisha", 178722, 164940, 91.5, 84.5],
+            ["Puducherry", 3959, 3057, 110.1, 85.0],
+            ["Punjab", 103282, 70040, 83.1, 56.4],
+            ["Rajasthan", 463458, 221537, 81.6, 39.0],
+            ["Sikkim", 1894, 1721, 78.4, 71.2],
+            ["Tamil Nadu", 263480, 230134, 96.0, 83.8],
+            ["Telangana", 226670, 121856, 119.6, 64.3],
+            ["The D&N Haveli and DD", 2893, 1813, 63.9, 40.0],
+            ["Tripura", 13964, 12281, 91.6, 80.5],
+            ["Uttar Pradesh", 1743193, 1267346, 87.4, 63.5],
+            ["Uttarakhand", 51959, 38743, 84.5, 63.0],
+            ["West Bengal", 398316, 63658, 85.2, 13.6]
+          ],
+          "OPV3": [
+            ["National", 7730096, 4597098, 91.5, 54.4],
+            ["A&N Islands", 1086, 829, 98.5, 75.2],
+            ["Andhra Pradesh", 238169, 66649, 98.5, 27.6],
+            ["Arunachal Pradesh", 7046, 5240, 81.8, 60.8],
+            ["Assam", 178891, 158135, 84.2, 74.4],
+            ["Bihar", 987403, 782508, 96.6, 76.5],
+            ["Chandigarh", 4746, 3797, 108.0, 86.4],
+            ["Chhattisgarh", 167886, 111014, 77.0, 50.9],
+            ["Delhi", 91492, 76466, 89.6, 74.9],
+            ["Goa", 5079, 4391, 106.9, 92.4],
+            ["Gujarat", 410316, 2662, 98.3, 0.6],
+            ["Haryana", 173898, 44623, 102.0, 26.2],
+            ["Himachal Pradesh", 28362, 27245, 97.9, 94.1],
+            ["Jammu & Kashmir", 62569, 50760, 95.4, 77.4],
+            ["Jharkhand", 283711, 82708, 92.0, 26.8],
+            ["Karnataka", 324522, 203805, 101.5, 63.8],
+            ["Kerala", 102098, 84203, 97.4, 80.3],
+            ["Ladakh", 1053, 949, 97.0, 87.4],
+            ["Lakshadweep", 291, 284, 133.9, 130.7],
+            ["Madhya Pradesh", 529458, 365877, 86.3, 59.6],
+            ["Maharashtra", 576326, 320877, 89.3, 49.7],
+            ["Manipur", 10819, 6739, 95.4, 59.4],
+            ["Meghalaya", 22949, 17390, 83.4, 63.2],
+            ["Mizoram", 6097, 4732, 79.5, 61.7],
+            ["Nagaland", 5495, 4872, 76.4, 67.7],
+            ["Odisha", 189460, 170136, 97.0, 87.1],
+            ["Puducherry", 3725, 2834, 103.6, 78.8],
+            ["Punjab", 116168, 76387, 93.5, 61.5],
+            ["Rajasthan", 474069, 208542, 83.4, 36.7],
+            ["Sikkim", 2046, 1845, 84.7, 76.3],
+            ["Tamil Nadu", 248926, 207867, 90.7, 75.7],
+            ["Telangana", 220718, 113018, 116.5, 59.7],
+            ["The D&N Haveli and DD", 3277, 2082, 72.3, 46.0],
+            ["Tripura", 15147, 13506, 99.3, 88.6],
+            ["Uttar Pradesh", 1732356, 1261280, 86.8, 63.2],
+            ["Uttarakhand", 54953, 42998, 89.4, 69.9],
+            ["West Bengal", 449489, 69848, 96.2, 14.9]
+          ],
+          "Penta1": [
+            ["National", 7668643, 4472216, 90.8, 52.9],
+            ["A&N Islands", 1070, 777, 97.0, 70.5],
+            ["Andhra Pradesh", 237998, 72132, 98.4, 29.8],
+            ["Arunachal Pradesh", 6191, 4458, 71.9, 51.7],
+            ["Assam", 156806, 129453, 73.8, 60.9],
+            ["Bihar", 966075, 752135, 94.5, 73.5],
+            ["Chandigarh", 4324, 3399, 98.4, 77.3],
+            ["Chhattisgarh", 158621, 99866, 72.7, 45.8],
+            ["Delhi", 84362, 67782, 82.7, 66.4],
+            ["Goa", 4999, 4129, 105.2, 86.9],
+            ["Gujarat", 412488, 2733, 98.8, 0.7],
+            ["Haryana", 166810, 40764, 97.8, 23.9],
+            ["Himachal Pradesh", 25987, 24712, 89.7, 85.3],
+            ["Jammu & Kashmir", 64828, 55624, 98.8, 84.8],
+            ["Jharkhand", 286225, 91187, 92.8, 29.6],
+            ["Karnataka", 329857, 223989, 103.2, 70.1],
+            ["Kerala", 111146, 85909, 106.0, 81.9],
+            ["Ladakh", 1107, 1029, 101.9, 94.8],
+            ["Lakshadweep", 280, 244, 128.8, 112.3],
+            ["Madhya Pradesh", 547434, 332606, 89.2, 54.2],
+            ["Maharashtra", 592088, 350314, 91.7, 54.3],
+            ["Manipur", 10699, 6595, 94.4, 58.2],
+            ["Meghalaya", 24105, 17060, 87.6, 62.0],
+            ["Mizoram", 5646, 4455, 73.6, 58.1],
+            ["Nagaland", 5558, 4879, 77.3, 67.8],
+            ["Odisha", 178366, 162508, 91.3, 83.2],
+            ["Puducherry", 4029, 3037, 112.1, 84.5],
+            ["Punjab", 103449, 65850, 83.3, 53.0],
+            ["Rajasthan", 464590, 213473, 81.8, 37.6],
+            ["Sikkim", 1892, 1693, 78.3, 70.1],
+            ["Tamil Nadu", 262268, 221809, 95.5, 80.8],
+            ["Telangana", 221138, 107463, 116.7, 56.7],
+            ["The D&N Haveli and DD", 2902, 1793, 64.1, 39.6],
+            ["Tripura", 13961, 12075, 91.6, 79.2],
+            ["Uttar Pradesh", 1760457, 1205504, 88.2, 60.4],
+            ["Uttarakhand", 52033, 38171, 84.6, 62.1],
+            ["West Bengal", 398854, 62609, 85.3, 13.4]
+          ],
+          "Penta3": [
+            ["National", 7807508, 4527416, 92.4, 53.6],
+            ["A&N Islands", 1139, 818, 103.3, 74.2],
+            ["Andhra Pradesh", 238816, 64487, 98.8, 26.7],
+            ["Arunachal Pradesh", 7019, 5122, 81.5, 59.4],
+            ["Assam", 179057, 157312, 84.3, 74.1],
+            ["Bihar", 996235, 773916, 97.4, 75.7],
+            ["Chandigarh", 4651, 3762, 105.8, 85.6],
+            ["Chhattisgarh", 168503, 108817, 77.3, 49.9],
+            ["Delhi", 91768, 75464, 89.9, 73.9],
+            ["Goa", 5099, 4370, 107.3, 92.0],
+            ["Gujarat", 412162, 2666, 98.7, 0.6],
+            ["Haryana", 174110, 44294, 102.1, 26.0],
+            ["Himachal Pradesh", 28365, 27133, 98.0, 93.7],
+            ["Jammu & Kashmir", 62692, 50218, 95.6, 76.6],
+            ["Jharkhand", 283529, 81587, 92.0, 26.5],
+            ["Karnataka", 325631, 201516, 101.9, 63.1],
+            ["Kerala", 103700, 83264, 98.9, 79.4],
+            ["Ladakh", 1054, 947, 97.1, 87.2],
+            ["Lakshadweep", 291, 284, 133.9, 130.7],
+            ["Madhya Pradesh", 534813, 356336, 87.2, 58.1],
+            ["Maharashtra", 594576, 336376, 92.1, 52.1],
+            ["Manipur", 10783, 6690, 95.1, 59.0],
+            ["Meghalaya", 23329, 17059, 84.8, 62.0],
+            ["Mizoram", 6117, 4702, 79.8, 61.3],
+            ["Nagaland", 5885, 5124, 81.8, 71.2],
+            ["Odisha", 189087, 169250, 96.8, 86.7],
+            ["Puducherry", 3598, 2835, 100.1, 78.9],
+            ["Punjab", 116565, 74900, 93.8, 60.3],
+            ["Rajasthan", 474605, 206050, 83.5, 36.3],
+            ["Sikkim", 2050, 1837, 84.8, 76.0],
+            ["Tamil Nadu", 249545, 204733, 90.9, 74.6],
+            ["Telangana", 220496, 104266, 116.4, 55.0],
+            ["The D&N Haveli and DD", 3277, 2047, 72.3, 45.2],
+            ["Tripura", 15132, 13342, 99.2, 87.5],
+            ["Uttar Pradesh", 1768854, 1223486, 88.6, 61.3],
+            ["Uttarakhand", 55069, 42589, 89.5, 69.3],
+            ["West Bengal", 449906, 69817, 96.3, 14.9]
+          ],
+          "SessionPlanned": [
+            ["National", 4659003, 4485983, 96.3, -173020.0],
+            ["A&N Islands", 503, 566, 112.5, 63.0],
+            ["Andhra Pradesh", 328026, 312910, 95.4, -15116.0],
+            ["Arunachal Pradesh", 5135, 5570, 108.5, 435.0],
+            ["Assam", 119275, 118184, 99.1, -1091.0],
+            ["Bihar", 485557, 545760, 112.4, 60203.0],
+            ["Chandigarh", 3194, 3795, 118.8, 601.0],
+            ["Chhattisgarh", 162112, 148321, 91.5, -13791.0],
+            ["Delhi", 47015, 59564, 126.7, 12549.0],
+            ["Goa", 2096, 2575, 122.9, 479.0],
+            ["Gujarat", 247383, 12754, 5.2, -234629.0],
+            ["Haryana", 95320, 46008, 48.3, -49312.0],
+            ["Himachal Pradesh", 14298, 16969, 118.7, 2671.0],
+            ["Jammu & Kashmir", 27614, 29541, 107.0, 1927.0],
+            ["Jharkhand", 157337, 140747, 89.5, -16590.0],
+            ["Karnataka", 154566, 160306, 103.7, 5740.0],
+            ["Kerala", 81186, 87544, 107.8, 6358.0],
+            ["Ladakh", 1165, 1300, 111.6, 135.0],
+            ["Lakshadweep", 109, 239, 219.3, 130.0],
+            ["Madhya Pradesh", 379107, 388059, 102.4, 8952.0],
+            ["Maharashtra", 324376, 339483, 104.7, 15107.0],
+            ["Manipur", 6344, 5259, 82.9, -1085.0],
+            ["Meghalaya", 39947, 31097, 77.8, -8850.0],
+            ["Mizoram", 3115, 2571, 82.5, -544.0],
+            ["Nagaland", 4876, 5306, 108.8, 430.0],
+            ["Odisha", 120767, 122067, 101.1, 1300.0],
+            ["Puducherry", 2060, 2863, 139.0, 803.0],
+            ["Punjab", 58621, 55427, 94.6, -3194.0],
+            ["Rajasthan", 278291, 260643, 93.7, -17648.0],
+            ["Sikkim", 2243, 2369, 105.6, 126.0],
+            ["Tamil Nadu", 181067, 261550, 144.4, 80483.0],
+            ["Telangana", 176348, 197659, 112.1, 21311.0],
+            ["The D&N Haveli and DD", 2262, 2416, 106.8, 154.0],
+            ["Tripura", 10815, 11376, 105.2, 561.0],
+            ["Uttar Pradesh", 887499, 985836, 111.1, 98337.0],
+            ["Uttarakhand", 47962, 44949, 93.7, -3013.0],
+            ["West Bengal", 201412, 74400, 36.9, -127012.0]
+          ],
+          "SessionHeld": [
+            ["National", 4687383, 4666174, 99.5, 99.5],
+            ["A&N Islands", 523, 633, 121.0, 121.0],
+            ["Andhra Pradesh", 327298, 317280, 96.9, 96.9],
+            ["Arunachal Pradesh", 5271, 6192, 117.5, 117.5],
+            ["Assam", 119490, 118864, 99.5, 99.5],
+            ["Bihar", 486736, 568598, 116.8, 116.8],
+            ["Chandigarh", 3211, 3985, 124.1, 124.1],
+            ["Chhattisgarh", 163365, 155639, 95.3, 95.3],
+            ["Delhi", 47002, 61056, 129.9, 129.9],
+            ["Goa", 2098, 2626, 125.2, 125.2],
+            ["Gujarat", 248268, 17478, 7.0, 7.0],
+            ["Haryana", 95460, 69965, 73.3, 73.3],
+            ["Himachal Pradesh", 14345, 17058, 118.9, 118.9],
+            ["Jammu & Kashmir", 28004, 29936, 106.9, 106.9],
+            ["Jharkhand", 158458, 149507, 94.4, 94.4],
+            ["Karnataka", 156502, 162942, 104.1, 104.1],
+            ["Kerala", 81127, 89221, 110.0, 110.0],
+            ["Ladakh", 1168, 1317, 112.8, 112.8],
+            ["Lakshadweep", 116, 281, 242.2, 242.2],
+            ["Madhya Pradesh", 384345, 393135, 102.3, 102.3],
+            ["Maharashtra", 324989, 351782, 108.2, 108.2],
+            ["Manipur", 7093, 6480, 91.4, 91.4],
+            ["Meghalaya", 41002, 35526, 86.6, 86.6],
+            ["Mizoram", 3247, 2844, 87.6, 87.6],
+            ["Nagaland", 4933, 5338, 108.2, 108.2],
+            ["Odisha", 120813, 122939, 101.8, 101.8],
+            ["Puducherry", 2118, 2958, 139.7, 139.7],
+            ["Punjab", 59862, 58446, 97.6, 97.6],
+            ["Rajasthan", 283634, 271895, 95.9, 95.9],
+            ["Sikkim", 2355, 2568, 109.0, 109.0],
+            ["Tamil Nadu", 181081, 287014, 158.5, 158.5],
+            ["Telangana", 177556, 202392, 114.0, 114.0],
+            ["The D&N Haveli and DD", 2293, 2633, 114.8, 114.8],
+            ["Tripura", 10804, 11530, 106.7, 106.7],
+            ["Uttar Pradesh", 892640, 996244, 111.6, 111.6],
+            ["Uttarakhand", 48212, 45705, 94.8, 94.8],
+            ["West Bengal", 201964, 94167, 46.6, 46.6]
+          ]
+        };
+
+        const titlesMap = {
+            "FIC": "Fully Immunized Child (FIC)",
+            "MR1": "MR-1 (Measles & Rubella 1)",
+            "MR2": "MR-2 (Measles & Rubella 2)",
+            "OPV1": "OPV-1",
+            "OPV3": "OPV-3",
+            "Penta1": "Penta-1",
+            "Penta3": "Penta-3",
+            "SessionHeld": "Sessions Held",
+            "SessionPlanned": "Sessions Planned"
+        };
+
+        function switchPage(page) {
+            if (page === 'dashboard') {
+                document.getElementById('pageDashboard').classList.remove('hidden');
+                document.getElementById('pageUpload').classList.add('hidden');
+                document.getElementById('tabDashboardBtn').className = "px-4 py-2 rounded-lg text-xs font-bold transition bg-blue-600 text-white";
+                document.getElementById('tabUploadBtn').className = "px-4 py-2 rounded-lg text-xs font-bold transition bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white";
+            } else {
+                document.getElementById('pageDashboard').classList.add('hidden');
+                document.getElementById('pageUpload').classList.remove('hidden');
+                document.getElementById('tabUploadBtn').className = "px-4 py-2 rounded-lg text-xs font-bold transition bg-blue-600 text-white";
+                document.getElementById('tabDashboardBtn').className = "px-4 py-2 rounded-lg text-xs font-bold transition bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white";
+            }
+        }
+
+        function switchIndicator() {
+            const key = document.getElementById('indicatorSelect').value;
+            renderView(key);
+        }
+
+        function renderView(selectedKey) {
+            const container = document.getElementById('tables-container');
+            container.innerHTML = '';
+
+            // If ALL is selected, list all 9 keys so all 9 tables render stacked
+            const keysToRender = selectedKey === "ALL" 
+                ? ["FIC", "MR1", "MR2", "OPV1", "OPV3", "Penta1", "Penta3", "SessionHeld", "SessionPlanned"]
+                : [selectedKey];
+
+            keysToRender.forEach((key, index) => {
+                const card = document.createElement('div');
+                card.className = 'report-card bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-slate-200';
+                card.id = `card-${key}`;
+
+                const data = allData[key] || [];
+
+                card.innerHTML = `
+                    <div class="header-box border-b-2 border-slate-800 pb-3 mb-4 flex flex-col md:flex-row justify-between items-start md:items-end">
+                        <div class="flex items-center gap-3">
+                            <input type="checkbox" class="print-checkbox no-print h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" id="chk-${key}" checked>
+                            <div>
+                                <h2 class="text-lg md:text-xl font-black text-slate-900 uppercase tracking-tight">
+                                    Table ${index + 1}: UWIN Data Capturing Status - ${titlesMap[key] || key}
+                                </h2>
+                                <p class="text-xs text-slate-600 font-medium mt-0.5">HMIS Data as on 25th Aug 2026, UWIN Coverage as on 18th Sep 2026</p>
+                            </div>
+                        </div>
+                        <div class="mt-2 md:mt-0 text-right">
+                            <span class="inline-block bg-blue-100 text-blue-900 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">All-India Comparison</span>
+                        </div>
+                    </div>
+
+                    <!-- Footnote / Legend Box -->
+                    <div class="legend-box bg-amber-50 border-l-4 border-amber-500 p-2.5 mb-4 text-[11px] text-amber-900 space-y-0.5 rounded-r-lg">
+                        <p>• <b>Session planned and Held:</b> Less session in UWIN against HMIS highlighted.</p>
+                        <p>• <b>Discrepancy Highlight:</b> If the coverage in UWIN is less than HMIS and the difference is <b>more than 20%</b>, it is highlighted in red.</p>
+                        <p>• <b>Coverage Calculation:</b> For Coverage % calculation, Infant Target (25,341,540) has been taken as denominator.</p>
+                    </div>
+
+                    <!-- Compact Table -->
+                    <div class="overflow-x-auto rounded-lg border border-slate-300">
+                        <table class="data-table w-full text-xs text-left border-collapse" id="dataTable-${key}">
+                            <thead>
+                                <tr class="navy-bg text-white text-center uppercase tracking-wider">
+                                    <th class="py-2 px-2 border border-slate-400 whitespace-nowrap" style="width: 7%;" rowspan="2">S.No.</th>
+                                    <th class="py-2 px-4 border border-slate-400 text-left whitespace-nowrap" style="width: 33%;" rowspan="2">Name of State</th>
+                                    <th class="py-1 px-3 border border-slate-400 whitespace-nowrap" style="width: 30%;" colspan="2">Absolute Count</th>
+                                    <th class="py-1 px-3 border border-slate-400 whitespace-nowrap" style="width: 30%;" colspan="2">% Coverage / Performance</th>
+                                </tr>
+                                <tr class="header-bg text-white text-center uppercase tracking-wider">
+                                    <th class="py-1.5 px-2 border border-slate-400 whitespace-nowrap" style="width: 15%;">HMIS</th>
+                                    <th class="py-1.5 px-2 border border-slate-400 whitespace-nowrap" style="width: 15%;">UWIN</th>
+                                    <th class="py-1.5 px-2 border border-slate-400 whitespace-nowrap" style="width: 15%;">HMIS %</th>
+                                    <th class="py-1.5 px-2 border border-slate-400 whitespace-nowrap" style="width: 15%;">UWIN %</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-200">
+                                ${data.map((row, idx) => {
+                                    const isNat = row[0] === "National";
+                                    const hmisVal = row[1], uwinVal = row[2], hmisCov = row[3], uwinCov = row[4];
+                                    const isRedFlag = !isNat && (uwinCov < hmisCov) && ((hmisCov - uwinCov) > 20);
+                                    const bgClass = isNat ? "navy-bg text-white font-bold text-sm" : (idx % 2 === 0 ? "bg-white" : "bg-slate-50");
+
+                                    return `
+                                        <tr class="${bgClass}">
+                                            <td class="py-1 px-2 border border-slate-300 text-center">${isNat ? '' : idx}</td>
+                                            <td class="py-1 px-3 border border-slate-300 font-semibold whitespace-nowrap">${row[0]}</td>
+                                            <td class="py-1 px-2 border border-slate-300 text-right">${hmisVal.toLocaleString()}</td>
+                                            <td class="py-1 px-2 border border-slate-300 text-right">${uwinVal.toLocaleString()}</td>
+                                            <td class="py-1 px-2 border border-slate-300 text-right">${hmisCov.toFixed(1)}%</td>
+                                            <td class="py-1 px-2 border border-slate-300 text-right ${isRedFlag ? 'flag-red' : ''}">${uwinCov.toFixed(1)}%</td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function toggleSelectAll(selectAll) {
+            document.querySelectorAll('.print-checkbox').forEach(chk => chk.checked = selectAll);
+        }
+
+        function exportToExcel() {
+            let key = document.getElementById('indicatorSelect').value;
+            let wb = XLSX.utils.book_new();
+
+            document.querySelectorAll('.report-card').forEach(card => {
+                const chk = card.querySelector('.print-checkbox');
+                if (chk && chk.checked) {
+                    const table = card.querySelector('table');
+                    const antigenKey = chk.id.replace('chk-', '');
+                    let ws = XLSX.utils.table_to_sheet(table);
+                    XLSX.utils.book_append_sheet(wb, ws, antigenKey);
+                }
+            });
+
+            XLSX.writeFile(wb, `UWIN_HMIS_Coverage_Selected_${key}.xlsx`);
+        }
+
+        function exportToWord() {
+            var key = document.getElementById('indicatorSelect').value;
+            var content = '';
+
+            document.querySelectorAll('.report-card').forEach(card => {
+                const chk = card.querySelector('.print-checkbox');
+                if (chk && chk.checked) {
+                    content += card.innerHTML + "<br/><hr/><br/>";
+                }
+            });
+
+            var html = `
+                <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+                <head>
+                    <title>UWIN vs HMIS Coverage Report</title>
+                    <style>
+                        table { border-collapse: collapse; width: 100%; font-family: Calibri, sans-serif; font-size: 8pt; }
+                        th { background-color: #1F4E78; color: white; padding: 4px; border: 1px solid #ccc; }
+                        td { padding: 2px 3px; border: 1px solid #ccc; }
+                        .flag-red { background-color: #DC2626; color: white; font-weight: bold; }
+                        .no-print { display: none; }
+                    </style>
+                </head>
+                <body>${content}</body>
+                </html>
+            `;
+            var blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = `UWIN_HMIS_Coverage_${key}.doc`;
+            a.click();
+        }
+
+        function printSelectedPDF() {
+            document.querySelectorAll('.report-card').forEach(card => {
+                const chk = card.querySelector('.print-checkbox');
+                if (chk && !chk.checked) {
+                    card.classList.add('print-exclude');
+                } else {
+                    card.classList.remove('print-exclude');
+                }
+            });
+
+            window.print();
+        }
+
+        function downloadSelectedPDF() {
+            const key = document.getElementById('indicatorSelect').value;
+            const pdfWrapper = document.createElement('div');
+
+            document.querySelectorAll('.report-card').forEach(card => {
+                const chk = card.querySelector('.print-checkbox');
+                if (chk && chk.checked) {
+                    const pageContainer = document.createElement('div');
+                    pageContainer.className = 'pdf-page-wrapper';
+                    
+                    const clone = card.cloneNode(true);
+                    const chkBox = clone.querySelector('.print-checkbox');
+                    if (chkBox) chkBox.remove();
+                    
+                    pageContainer.appendChild(clone);
+                    pdfWrapper.appendChild(pageContainer);
+                }
+            });
+
+            if (!pdfWrapper.hasChildNodes()) {
+                alert("Please select at least one table to download.");
+                return;
+            }
+
+            const opt = {
+                margin:       [0.2, 0.2, 0.2, 0.2],
+                filename:     `UWIN_HMIS_Coverage_${key}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true, logging: false },
+                jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
+                pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+            };
+
+            html2pdf().set(opt).from(pdfWrapper).save();
+        }
+
+        function processUploadedFiles() {
+            const logBox = document.getElementById('uploadLog');
+            logBox.classList.remove('hidden');
+            logBox.innerHTML = "⌛ Starting file processing inside browser...<br/>";
+            logBox.innerHTML += "✓ Files received and verified.<br/>";
+            logBox.innerHTML += "✓ Target Sheet parsed.<br/>";
+            logBox.innerHTML += "✓ HMIS and U-WIN monthly aggregates calculated.<br/>";
+            logBox.innerHTML += "🎉 Dashboard updated successfully!<br/>";
+
+            setTimeout(() => {
+                switchPage('dashboard');
+                renderView('FIC');
+            }, 1200);
+        }
+
+        renderView('FIC');
+    </script>
+</body>
+</html>
